@@ -1,0 +1,70 @@
+import math
+import numpy as np
+import glob
+import cv2 as cv
+
+def apply_mask(matrix, mask, fill_value):
+    masked = np.ma.array(matrix, mask=mask, fill_value=fill_value)
+    return masked.filled()
+
+def apply_threshold(matrix, low_value, high_value):
+    low_mask = matrix < low_value
+    matrix = apply_mask(matrix, low_mask, low_value)
+
+    high_mask = matrix > high_value
+    matrix = apply_mask(matrix, high_mask, high_value)
+
+    return matrix
+
+def simplest_cb(img, percent):
+    assert img.shape[2] == 3
+    assert percent > 0 and percent < 100
+
+    half_percent = percent / 200.0
+
+    channels = cv.split(img)
+
+    out_channels = []
+    for channel in channels:
+        assert len(channel.shape) == 2
+        # find the low and high precentile values (based on the input percentile)
+        height, width = channel.shape
+        vec_size = width * height
+        flat = channel.reshape(vec_size)
+
+        assert len(flat.shape) == 1
+
+        flat = np.sort(flat)
+
+        n_cols = flat.shape[0]
+
+        low_val = flat[int(math.floor(n_cols * half_percent))]
+        high_val = flat[int(math.ceil(n_cols * (1.0 - half_percent)))]
+
+       # print("Lowval: ", low_val)
+        #print("Highval: ", high_val)
+
+        # saturate below the low percentile and above the high percentile
+        thresholded = apply_threshold(channel, low_val, high_val)
+        # scale the channel
+        normalized = cv.normalize(thresholded, thresholded.copy(), 0, 255, cv.NORM_MINMAX)
+        out_channels.append(normalized)
+
+    return cv.merge(out_channels)
+
+def show(final):
+    print('display')
+    cv.imshow('Temple', final)
+
+if __name__=="__main__":
+
+
+    path = "C:\\Users\\Umar Khalid\\PycharmProjects\\White_balance_1\\face_qm\\*.*"
+    for bb, file in enumerate(glob.glob(path)):
+            print(bb, file)
+            img = cv.imread(file)
+            cv.imwrite('C:\\Users\\Umar Khalid\\PycharmProjects\\Algo4_white_balance\\images_final_algoritm\\output{}.jpeg'.format(bb), c)
+            # wait
+            k = cv.waitKey(10)
+            # destroy the window
+            cv.destroyAllWindows()
